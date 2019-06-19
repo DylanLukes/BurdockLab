@@ -7,8 +7,8 @@ with open(path.join(project_dir, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='burdock-lab',
-    version='0.0.7a1',
-    packages=['burdock_lab'],
+    version='0.0.7a2',
+    packages=['burdock'],
     url='https://github.com/DylanLukes/burdock_lab',
     license='BSD 3-Clause',
 
@@ -19,6 +19,6 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
 
-    install_requires=[],
+    install_requires=['burdock'],
     include_package_data=True
 )
