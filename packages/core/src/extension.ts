@@ -61,6 +61,8 @@ function activateBurdock(
     }
 
     async function createBurdock(options: ICreateOptions): Promise<BurdockPanel> {
+        console.log("Creating Burdock!", options);
+
         await manager.ready;
 
         const panel = new BurdockPanel(manager);
@@ -82,17 +84,23 @@ function activateBurdock(
     }
 
     commands.addCommand(CommandIDs.open, {
-        label: 'Open Burdock Lab',
+        label: 'Show Burdock',
         execute: (args: IOpenOptions) => {
+            console.log("Open burdock called!", args);
+
             let widget = tracker.find(_ => true);
 
             if (widget) {
-                if (args['activate']) {
+                if (!widget.isAttached) {
+                    shell.add(widget, 'main')
+                }
+
+                if (args['activate'] !== false) {
                     shell.activateById(widget.id);
                 }
+
                 return widget;
             } else {
-                //let model = new BurdockModel();
                 return createBurdock(args);
             }
         }

@@ -1,1 +1,2 @@
-export * from "./extension";
+import plugins from "./extension";
+export default plugins;
