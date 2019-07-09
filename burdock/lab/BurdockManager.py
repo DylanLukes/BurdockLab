@@ -1,2 +1,0 @@
-class BurdockManager(object):
-    pass
