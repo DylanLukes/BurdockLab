@@ -1,14 +1,16 @@
 import json
+import uuid
 from concurrent.futures.thread import ThreadPoolExecutor
 
-from jupyter_client import MultiKernelManager
+from jupyter_client import MultiKernelManager, KernelManager
 from jupyter_client.jsonutil import date_default
 from notebook.base.handlers import APIHandler
+from tornado import web
 
 from burdock.lab.client import BurdockKernelClient
-from burdock.lab.errors import KernelNotFound, KernelNotIPython
+from burdock.lab.errors.http import KernelNotFound, KernelNotIPython, KernelExecutionError
+from burdock.lab.errors.kernel import IPythonExecuteException
 from burdock.lab.manager import BurdockRootManager
-from burdock.lab.typing import KernelId
 
 # todo: use a less magical number
 TIMEOUT = 15
@@ -43,19 +45,21 @@ class BurdockRootHandler(BaseBurdockHandler):
 class BurdockKernelHandler(BaseBurdockHandler):
     thread_pool = ThreadPoolExecutor(4)
 
-    def head(self, kernel_id: KernelId):
+    @web.authenticated
+    async def head(self, kernel_id: str):
         if kernel_id not in self.kernel_manager:
             raise KernelNotFound(kernel_id)
 
-        self.finish()
+        return self.finish()
 
-    async def get(self, kernel_id: KernelId):
+    @web.authenticated
+    async def get(self, kernel_id: uuid):
         multi_km = self.multi_kernel_manager
 
         if kernel_id not in multi_km:
             raise KernelNotFound(kernel_id)
 
-        km = multi_km.get_kernel(kernel_id)
+        km: KernelManager = multi_km.get_kernel(kernel_id)
 
         if not km.ipykernel:
             raise KernelNotIPython(kernel_id)
@@ -63,8 +67,12 @@ class BurdockKernelHandler(BaseBurdockHandler):
         client = BurdockKernelClient.make(km)
         client.start_channels()
 
-        reply = await client.request_execute('sum([1,2,3])')
-        return self.finish(json.dumps(reply, default=date_default))
+        try:
+            response = await client.execute_async('sum([1,2,3])')
+        except IPythonExecuteException as e:
+            raise KernelExecutionError(e)
+
+        return self.finish(json.dumps(response, default=date_default))
 
 
 # noinspection PyAbstractClass

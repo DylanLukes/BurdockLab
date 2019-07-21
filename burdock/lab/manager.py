@@ -1,8 +1,7 @@
+import uuid
 from typing import Dict
 
 from jupyter_client import KernelManager
-
-from burdock.lab.typing import KernelId
 
 
 class BurdockManager:
@@ -28,8 +27,7 @@ class BurdockRootManager:
     A manager which keeps track of all extant BurdockManagers and their
     associated kernel managers.
     """
-    burdock_managers: Dict[KernelId, BurdockManager]
+    burdock_managers: Dict[str, BurdockManager]
 
     def __init__(self):
         self.burdock_managers = dict()
-
