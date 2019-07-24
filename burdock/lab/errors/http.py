@@ -1,48 +1,65 @@
-import uuid
+from dataclasses import dataclass, field
 
 from tornado import httputil
 from tornado.web import HTTPError
 
-from burdock.lab.errors.kernel import IPythonExecuteException
+
+@dataclass(init=False)
+class BurdockHTTPError(HTTPError):
+    status_code: int = None
+    log_message_format: str = "No error message provided."
+
+    log_message: str = field(init=False)
+    reason: str = field(init=False)
+
+    def __init__(self, status_code=None, log_message=None, *args, **kwargs):
+        if status_code is None:
+            status_code = self.status_code
+
+        if log_message is None:
+            log_message = self.log_message_format.format(**kwargs)
+
+        if 'reason' not in kwargs:
+            kwargs['reason'] = httputil.responses.get(self.status_code, 'Unknown')
+
+        super(BurdockHTTPError, self).__init__(status_code, log_message, *args, **kwargs)
 
 
-class KernelNotFound(HTTPError):
+class KernelNotFound(BurdockHTTPError):
     status_code = 404
-    msg = "Kernel with id {kernel_id} not found."
+    log_message_format = "Kernel with id {kernel_id} not found."
 
-    def __init__(self, kernel_id: str):
-        status_code = KernelNotFound.status_code
-        msg = KernelNotFound.msg.format(kernel_id=kernel_id)
-        reason = httputil.responses.get(status_code, 'Unknown')
-
-        super(KernelNotFound, self).__init__(status_code=status_code,
-                                             log_message=msg,
-                                             reason=reason)
+    def __init__(self, kernel_id=None, *args, **kwargs):
+        super(KernelNotFound, self).__init__(kernel_id=kernel_id, *args, **kwargs)
 
 
-class KernelNotIPython(HTTPError):
+class BurdockNotFound(BurdockHTTPError):
+    status_code = 404
+    log_message_format = "Burdock instance for id {kernel_id} not found."
+
+    def __init__(self, kernel_id=None, *args, **kwargs):
+        super(BurdockNotFound, self).__init__(kernel_id=kernel_id, *args, **kwargs)
+
+
+class BurdockAlreadyExists(BurdockHTTPError):
     status_code = 400
-    msg = "Kernel with id {kernel_id} is not IPython."
+    log_message_format = "Burdock instance for id {kernel_id} already exists."
 
-    def __init__(self, kernel_id: str):
-        status_code = KernelNotIPython.status_code
-        msg = KernelNotIPython.msg.format(kernel_id=kernel_id)
-        reason = httputil.responses.get(KernelNotIPython.status_code, 'Unknown')
-
-        super(KernelNotIPython, self).__init__(status_code=status_code,
-                                               log_message=msg,
-                                               reason=reason)
+    def __init__(self, kernel_id=None, *args, **kwargs):
+        super(BurdockAlreadyExists, self).__init__(kernel_id=kernel_id, *args, **kwargs)
 
 
-class KernelExecutionError(HTTPError):
+class KernelNotIPython(BurdockHTTPError):
+    status_code = 400
+    log_message_format = "Kernel with id {kernel_id} is not IPython."
+
+    def __init__(self, kernel_id=None, *args, **kwargs):
+        super(KernelNotIPython, self).__init__(kernel_id=kernel_id, *args, **kwargs)
+
+
+class KernelExecutionError(BurdockHTTPError):
     status_code = 500
-    msg = "Kernel execution threw exception {exception.name}: {exception.value}"
+    log_message_format = "Kernel execution threw exception {exception.name}: {exception.value}"
 
-    def __init__(self, exception: IPythonExecuteException):
-        status_code = KernelExecutionError.status_code
-        msg = KernelExecutionError.msg.format(exception=exception)
-        reason = httputil.responses.get(KernelExecutionError.status_code, 'Unknown')
-
-        super(KernelExecutionError, self).__init__(status_code=status_code,
-                                                   log_message=msg,
-                                                   reason=reason)
+    def __init__(self, exception=None, *args, **kwargs):
+        super(KernelExecutionError, self).__init__(exception=exception, *args, **kwargs)

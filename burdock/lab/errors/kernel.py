@@ -8,6 +8,11 @@ class IPythonExecuteException(Exception, abc.ABC):
 
 
 @dataclass
+class FancyPingFailed(IPythonExecuteException):
+    output: List[str]
+
+
+@dataclass
 class ExecuteAbort(IPythonExecuteException):
     pass
 
