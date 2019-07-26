@@ -2,8 +2,9 @@ from asyncio import Event, Future
 from collections import defaultdict
 from dataclasses import dataclass, field
 from logging import Logger
-from typing import Dict, List, Mapping, Optional, Set, Callable, Any, TypeVar, Generic
+from typing import Dict, Optional, Set, Callable
 
+from jupyter_client.client import validate_string_dict
 from jupyter_client.session import Session
 from jupyter_client.threaded import ThreadedZMQSocketChannel
 from tornado.platform.asyncio import BaseAsyncIOLoop
@@ -58,7 +59,6 @@ class AsyncChannel(ThreadedZMQSocketChannel):
     ioloop: BaseAsyncIOLoop
     stream: ZMQStream
 
-    # Events and futures may be registered for
     events: Dict[str, Set[EventRecord]]
     futures: Dict[str, Set[FutureRecord]]
     queues: Dict[str, Set[QueueRecord]]
@@ -162,8 +162,6 @@ class AsyncChannel(ThreadedZMQSocketChannel):
     def call_handlers(self, raw_msg: dict):
         msg = Message(raw_msg)
 
-        parent_msg_id = msg.parent_header.msg_id if msg.parent_header else None
-
         self._handle_events(msg)
         self._handle_futures(msg)
         self._handle_queues(msg)
@@ -174,7 +172,45 @@ class DealerRouterAsyncChannel(AsyncChannel):
     Jupyter's 'shell' and 'stdin' channels are dealer-router, which is
     (roughly) an asynchronous form of request-response style communication.
     """
-    pass
+
+    def prepare_request(self,
+                        code: str,
+                        session: Session,
+                        silent=False,
+                        store_history=True,
+                        user_expressions=None,
+                        allow_stdin=False,
+                        stop_on_error=True) -> (dict, 'Future[Message]'):
+        """Prepares an execute_request but does not send it. This is intended
+           to give time to register other futures/events/queues before sending."""
+        if user_expressions is None:
+            user_expressions = {}
+
+        validate_string_dict(user_expressions)
+
+        content = dict(
+            code=code,
+            silent=silent,
+            store_history=store_history,
+            user_expressions=user_expressions,
+            allow_stdin=allow_stdin,
+            stop_on_error=stop_on_error
+        )
+
+        raw_msg = session.msg('execute_request', content)
+        msg_id = raw_msg['header']['msg_id']
+
+        reply_future = self.register_future(
+            msg_id,
+            lambda m: m.header.msg_type == 'execute_reply'
+        )
+
+        return raw_msg, reply_future
+
+    def request(self, code: str, session: Session, *args, **kwargs) -> 'Future[Message]':
+        (raw_msg, reply_future) = self.prepare_request(code, session, *args, **kwargs)
+        self.send(raw_msg)
+        return reply_future
 
 
 class PubSubAsyncChannel(AsyncChannel):
@@ -182,4 +218,10 @@ class PubSubAsyncChannel(AsyncChannel):
     The 'iopub' channel on the other hand is pub-sub. Messages are pushed
     from the kernel and received here. Communication is mono-directional.
     """
-    pass
+    def result(self, parent_msg_id) -> 'Future[Message]':
+        result_future = self.register_future(
+            parent_msg_id,
+            lambda m: m.header.msg_type == 'execute_result'
+        )
+
+        return result_future
