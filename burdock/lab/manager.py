@@ -5,7 +5,8 @@ from typing import Dict
 from jupyter_client import KernelManager, MultiKernelManager
 from jupyter_client.jsonutil import date_default
 
-from burdock.lab.client import BurdockKernelClient, filter_none, on_execution_idle, filter_stdout, filter_stderr
+from burdock.lab.client import BurdockKernelClient
+from burdock.lab.util.msg_predicates import filter_none, filter_stdout, filter_stderr, on_execution_idle
 from burdock.lab.errors.http import BurdockNotFound, KernelExecutionError, KernelNotFound
 from burdock.lab.errors.kernel import IPythonExecuteException, FancyPingFailed
 from burdock.lab.message import Message
@@ -29,12 +30,12 @@ class BurdockManager:
 
     async def _execute(self, code) -> Message:
         try:
-            return await self.client.execute_async(code)
+            return await self.client.execute_retval(code)
         except IPythonExecuteException as e:
             raise KernelExecutionError(e)
 
     def _stream(self, code, filter_pred=None, close_pred=None):
-        return self.client.execute_stream_io(code, filter_pred, close_pred)
+        return self.client.execute_output(code, filter_pred, close_pred)
 
     async def install(self):
         """
