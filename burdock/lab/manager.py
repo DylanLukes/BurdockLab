@@ -1,4 +1,5 @@
 import json
+from dataclasses import asdict
 from typing import Dict
 
 from jupyter_client import KernelManager, MultiKernelManager
@@ -7,6 +8,7 @@ from jupyter_client.jsonutil import date_default
 from burdock.lab.client import BurdockKernelClient, filter_none, on_execution_idle, filter_stdout, filter_stderr
 from burdock.lab.errors.http import BurdockNotFound, KernelExecutionError, KernelNotFound
 from burdock.lab.errors.kernel import IPythonExecuteException, FancyPingFailed
+from burdock.lab.message import Message
 
 
 class BurdockManager:
@@ -25,7 +27,7 @@ class BurdockManager:
         self.client.start_channels()
         self.is_installed = False
 
-    async def _execute(self, code):
+    async def _execute(self, code) -> Message:
         try:
             return await self.client.execute_async(code)
         except IPythonExecuteException as e:
@@ -42,16 +44,17 @@ class BurdockManager:
         response = await self._execute((
             "from IPython.core.getipython import get_ipython\n"
             "from burdock.lab.agent import BurdockAgent\n"
-            "BurdockAgent(get_ipython())\n"
+            "BurdockAgent(get_ipython())"
+            "\n"
         ))
 
         self.is_installed = True
-        return json.dumps(response, default=date_default)
+        return json.dumps(asdict(response), default=date_default)
 
     async def ping(self):
         response = await self._execute("'po' + 'ng'")
 
-        return json.dumps(response, default=date_default)
+        return json.dumps(asdict(response), default=date_default)
 
     async def fancy_ping(self):
         queue = self._stream(
@@ -60,26 +63,28 @@ class BurdockManager:
             close_pred=on_execution_idle
         )
 
-        async def _log_output():
-            prev_msg = None
-            msg = None
-            outputs = []
+        outputs = []
 
-            while True:
-                prev_msg = msg
-                msg = await queue.get()
-                if msg is None:
-                    return {'outputs': outputs}
-                else:
-                    text = msg['content']['text']
-                    outputs += text.split("\n")
+        while True:
+            msg = await queue.get()
+            if msg is queue.sentinel:
+                queue.task_done()
+                break
+            else:
+                text = msg.content['text']
+                outputs += text.splitlines()
 
-                    if len(outputs) >= 3 and outputs[0:3] != ["1", "2", "3"]:
-                        raise FancyPingFailed(outputs)
+                if len(outputs) >= 3 and outputs[0:3] != ["1", "2", "3"]:
+                    raise FancyPingFailed(outputs)
 
-        output = await _log_output()
+                queue.task_done()
 
-        return json.dumps(output, default=date_default)
+        await queue.join()
+        return json.dumps(outputs, default=date_default)
+
+    async def list_dfvars(self):
+        response = await self._execute("__burdock__.data_frame_variables")
+        return json.dumps(asdict(response), default=date_default)
 
 
 class MultiBurdockManager:

@@ -52,7 +52,7 @@ class BaseBurdockHandler(APIHandler):
 
     # noinspection PyMethodOverriding
     def initialize(self, multi_burdock_manager: MultiBurdockManager):
-        super(APIHandler, self).initialize()
+        super().initialize()
         self.multi_burdock_manager = multi_burdock_manager
 
 
@@ -106,6 +106,8 @@ class BurdockActionHandler(BaseBurdockHandler):
             return await self.ping(kernel_id)
         if action == 'fancy_ping':
             return await self.fancy_ping(kernel_id)
+        if action == 'dfvars':
+            return await self.list_dfvars(kernel_id)
 
     async def ping(self, kernel_id: str):
         _ = self._get_kernel_manager(kernel_id)
@@ -120,9 +122,15 @@ class BurdockActionHandler(BaseBurdockHandler):
 
         return self.finish(await bm.fancy_ping())
 
+    async def list_dfvars(self, kernel_id: str):
+        _ = self._get_kernel_manager(kernel_id)
+        bm = self._get_burdock_manager(kernel_id)
+
+        return self.finish(await bm.list_dfvars())
+
 
 _burdock_kernel_id_regex = r"(?P<kernel_id>\w+-\w+-\w+-\w+-\w+)"
-_burdock_action_id_regex = r"(?P<action>ping|fancy_ping)"
+_burdock_action_id_regex = r"(?P<action>ping|fancy_ping|dfvars)"
 
 default_handlers = [
     (r"/api/burdock/?", MultiBurdockHandler),

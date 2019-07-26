@@ -1,21 +1,16 @@
 from asyncio import Future, Queue
-from typing import Callable, Dict, Tuple, Optional
+from typing import Optional
 
 from ipython_genutils.py3compat import string_types
 from jupyter_client import KernelManager
 from jupyter_client.client import validate_string_dict
-from jupyter_client.session import Session
-from jupyter_client.threaded import ThreadedZMQSocketChannel, ThreadedKernelClient
-from tornado.platform.asyncio import BaseAsyncIOLoop
+from jupyter_client.threaded import ThreadedKernelClient
 from traitlets import Type
-from zmq import Socket
-from zmq.eventloop.zmqstream import ZMQStream
 
+from burdock.lab.message import Message
+from burdock.lab.util.channels import AsyncChannel, MessagePredicate
 from burdock.lab.errors.kernel import ExecuteError, ExecuteAbort
-
-Message = dict
-
-MessagePredicate = Callable[[Message], bool]
+from burdock.lab.util.finite_queue import FiniteQueue
 
 
 def filter_none(_msg: Message) -> bool:
@@ -24,131 +19,39 @@ def filter_none(_msg: Message) -> bool:
 
 def filter_stdout(msg: Message) -> bool:
     try:
-        return msg['msg_type'] == 'stream' \
-               and msg['content']['name'] == 'stdout'
-    except KeyError as e:
+        return msg.header.msg_type == 'stream' \
+               and msg.content['name'] == 'stdout'
+    except KeyError:
         return False
 
 
 def filter_stderr(msg: Message) -> bool:
     try:
-        return msg['msg_type'] == 'stream' \
-               and msg['content']['name'] == 'stderr'
-    except KeyError as e:
+        return msg.header.msg_type == 'stream' \
+               and msg.content['name'] == 'stderr'
+    except KeyError:
         return False
 
 
 def on_execution_idle(msg: Message) -> bool:
     try:
-        return msg['msg_type'] == 'status' \
-               and msg['content']['execution_state'] == 'idle'
-    except KeyError as e:
+        return msg.header.msg_type == 'status' \
+               and msg.content['execution_state'] == 'idle'
+    except KeyError:
         return False
 
 
-class BurdockChannel(ThreadedZMQSocketChannel):
-    session: Session
-    socket: Socket
-    ioloop: BaseAsyncIOLoop
-    stream: ZMQStream
-
-    # A channel can await a response of a certain message.
-    _recv_futures: Dict[Tuple[str, str], Future]
-
-    # A chanenl can stream (enqueue) all messages of a type until a condition.
-    # (e.g. execution state = idle)
-    # Value = (queue,
-    _recv_queues: Dict[str, Tuple[Queue, MessagePredicate, MessagePredicate]]
-
-    def __init__(self, socket, session, loop):
-        super().__init__(socket, session, loop)
-        self._recv_futures = dict()
-        self._recv_queues = dict()
-
-    def register_future(self, request_id: str, msg_type: str) -> Future:
-        key = (request_id, msg_type)
-        future = Future()
-
-        def cleanup_future(_future):
-            self.unregister_future(*key)
-
-        future.add_done_callback(cleanup_future)
-
-        self._recv_futures[key] = future
-        return future
-
-    def unregister_future(self, request_id: str, msg_type: str):
-        key = (request_id, msg_type)
-
-        del self._recv_futures[key]
-
-    def register_stream(self,
-                        request_id: str,
-                        filter_pred: MessagePredicate,
-                        close_pred: MessagePredicate) -> 'Queue[Optional[Message]]':
-        key = request_id
-        queue = Queue()
-
-        self._recv_queues[key] = (queue, filter_pred, close_pred)
-        return queue
-
-    def unregister_stream(self, request_id: str):
-        del self._recv_queues[request_id]
-
-    def call_handlers(self, msg: Message):
-        # pprint.pprint(msg, indent=2)  # for debugging
-        header = msg.get('header', None)
-        parent_header = msg.get('parent_header', None)
-
-        if not header:
-            return
-
-        def header_summary() -> str:
-            if parent_header:
-                return (f"IN  {header['msg_id']}:{header['msg_type']} ↩︎ "
-                        f"    {parent_header['msg_id']}:{parent_header['msg_type']}")
-            else:
-                return f"IN  {header['msg_id']}:{header['msg_type']} ←"
-
-        def body_summary() -> str:
-            return msg['content']
-
-        print("")
-        print(header_summary())
-        print(body_summary())
-
-        if not parent_header:
-            return
-
-        request_id = parent_header['msg_id']
-        reply_msg_type = header['msg_type']
-
-        key = (request_id, reply_msg_type)
-
-        if key in self._recv_futures:
-            recv_future = self._recv_futures[key]
-            recv_future.set_result(msg)
-
-        if request_id in self._recv_queues:
-            (queue, filter_pred, close_pred) = self._recv_queues[request_id]
-
-            if filter_pred(msg):
-                queue.put_nowait(msg)
-
-            if close_pred(msg):
-                queue.put_nowait(None)
-                self.unregister_stream(request_id)
-
-
 class BurdockKernelClient(ThreadedKernelClient):
-    iopub_channel_class = Type(BurdockChannel)
-    shell_channel_class = Type(BurdockChannel)
-    stdin_channel_class = Type(BurdockChannel)
+    iopub_channel_class = Type(AsyncChannel)
+    shell_channel_class = Type(AsyncChannel)
+    stdin_channel_class = Type(AsyncChannel)
 
     # Typing hints to enhance IDE support.
-    iopub_channel: BurdockChannel
-    shell_channel: BurdockChannel
-    stdin_channel: BurdockChannel
+    iopub_channel: AsyncChannel
+    shell_channel: AsyncChannel
+    stdin_channel: AsyncChannel
+
+    burdock_channel: AsyncChannel
 
     @staticmethod
     def create(km: KernelManager, **kwargs) -> 'BurdockKernelClient':
@@ -167,8 +70,7 @@ class BurdockKernelClient(ThreadedKernelClient):
                           filter_pred: MessagePredicate = None,
                           close_pred: MessagePredicate = None,
                           silent=False, store_history=True,
-                          user_expressions=None, allow_stdin=None, stop_on_error=True,
-                          ) -> 'Queue[Optional[dict]]':
+                          user_expressions=None, allow_stdin=None, stop_on_error=True) -> FiniteQueue:
         """
             Similar to KernelClient.execute, but with asynchronous goodness.
             This is intended only for shell channel request/reply style messages.
@@ -195,7 +97,7 @@ class BurdockKernelClient(ThreadedKernelClient):
         msg = self.session.msg('execute_request', content)
         msg_id = msg['header']['msg_id']
 
-        stream_queue = self.iopub_channel.register_stream(msg_id, filter_pred, close_pred)
+        stream_queue = self.iopub_channel.register_queue(msg_id, filter_pred, close_pred)
 
         self.shell_channel.send(msg)
         print("")
@@ -204,7 +106,7 @@ class BurdockKernelClient(ThreadedKernelClient):
         return stream_queue
 
     def execute_async(self, code, silent=False, store_history=True,
-                      user_expressions=None, allow_stdin=None, stop_on_error=True) -> 'Future[dict]':
+                      user_expressions=None, allow_stdin=None, stop_on_error=True) -> Future:
         """
         Similar to KernelClient.execute, but returns a Future for the execution result.
         This is intended only for shell channel request/reply style messages.
@@ -225,8 +127,8 @@ class BurdockKernelClient(ThreadedKernelClient):
         msg = self.session.msg('execute_request', content)
         msg_id = msg['header']['msg_id']
 
-        reply_future = self.shell_channel.register_future(msg_id, 'execute_reply')
-        result_future = self.iopub_channel.register_future(msg_id, 'execute_result')
+        reply_future = self.shell_channel.register_future(msg_id, lambda m: m.header.msg_type == 'execute_reply')
+        result_future = self.iopub_channel.register_future(msg_id, lambda m: m.header.msg_type == 'execute_result')
         # todo: detect 'idle' and add predicates to determine if the future should be resolved.
         self.shell_channel.send(msg)
 
@@ -236,13 +138,13 @@ class BurdockKernelClient(ThreadedKernelClient):
             # noinspection PyBroadException
             try:
                 reply = _reply_future.result()
-                if reply['content']['status'] == 'error':
-                    exn = ExecuteError(name=reply['content']['ename'],
-                                       value=reply['content']['evalue'],
-                                       traceback=reply['content']['traceback'])
+                if reply.content['status'] == 'error':
+                    exn = ExecuteError(name=reply.content['ename'],
+                                       value=reply.content['evalue'],
+                                       traceback=reply.content['traceback'])
 
                     result_future.set_exception(exn)
-                if reply['content']['status'] == 'abort':
+                if reply.content['status'] == 'abort':
                     result_future.set_exception(ExecuteAbort())
             except Exception:
                 # todo this probably isn't quite right...

@@ -1,6 +1,11 @@
-from typing import Type, Set, List
+from typing import List
+import tempfile
 
+import pandas as pd
 from IPython import InteractiveShell
+from jupyter_client.session import Session
+
+from burdock.core import Burdock
 
 
 class BurdockAgent:
@@ -13,6 +18,7 @@ class BurdockAgent:
 
     def __init__(self, shell: InteractiveShell):
         self.shell = shell
+        self.session = Session()
         self._df_vars = list()
 
         self._install_in_shell()
@@ -23,7 +29,7 @@ class BurdockAgent:
     # Voodoo
     # --------------------------------------------------------------------------
     def _install_in_shell(self):
-        self.shell.user_ns_hidden['__burdock__'] = self
+        self.shell.user_ns['__burdock__'] = self
 
     # --------------------------------------------------------------------------
     # DataFrame variable tracking
@@ -50,6 +56,34 @@ class BurdockAgent:
 
     def _update_df_vars(self):
         self._df_vars = self._get_df_vars()
+
+    # --------------------------------------------------------------------------
+    # Running Daikon (via Burdock)
+    # --------------------------------------------------------------------------
+
+    def analyze_dataframe(self, name: str):
+        user_ns = self.shell.user_ns
+        assert name in user_ns
+
+        df = user_ns.get(name)
+        assert isinstance(df, pd.DataFrame)
+
+        burdock = Burdock(name, df)
+        burdock.match()
+        burdock.expand()
+
+        # UH OH: your code should not rely on a temporary file
+        # created using this function having or not having a
+        # visible name in the file system.
+
+        # Note: If delete is true (the default), the file
+        # is deleted as soon as it is closed.
+
+        decls_tmp = tempfile.NamedTemporaryFile(prefix='burdock-')
+        dtrace_tmp = tempfile.NamedTemporaryFile(prefix='burdock-')
+
+        burdock.write_decls(decls_tmp)
+        burdock.write_dtrace(dtrace_tmp)
 
     # --------------------------------------------------------------------------
     # IPython Events
