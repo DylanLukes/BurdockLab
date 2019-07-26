@@ -61,7 +61,7 @@ class BurdockAgent:
     # Running Daikon (via Burdock)
     # --------------------------------------------------------------------------
 
-    def analyze_dataframe(self, name: str):
+    def analyze(self, name: str) -> (str, str):
         user_ns = self.shell.user_ns
         assert name in user_ns
 
@@ -79,11 +79,20 @@ class BurdockAgent:
         # Note: If delete is true (the default), the file
         # is deleted as soon as it is closed.
 
-        decls_tmp = tempfile.NamedTemporaryFile(prefix='burdock-')
-        dtrace_tmp = tempfile.NamedTemporaryFile(prefix='burdock-')
-
+        # todo: don't spew so many tmp files...
+        decls_tmp = tempfile.NamedTemporaryFile(mode='w+',
+                                                prefix='burdock-',
+                                                suffix='.decls',
+                                                delete=False)
         burdock.write_decls(decls_tmp)
+
+        dtrace_tmp = tempfile.NamedTemporaryFile(mode='w+',
+                                                 prefix='burdock-',
+                                                 suffix='.dtrace',
+                                                 delete=False)
         burdock.write_dtrace(dtrace_tmp)
+
+        return decls_tmp.name, dtrace_tmp.name
 
     # --------------------------------------------------------------------------
     # IPython Events

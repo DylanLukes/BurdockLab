@@ -1,3 +1,4 @@
+import ast
 import json
 from dataclasses import asdict
 from typing import Dict
@@ -86,6 +87,11 @@ class BurdockManager:
     async def list_dfvars(self):
         response = await self._execute("__burdock__.data_frame_variables")
         return json.dumps(asdict(response), default=date_default)
+
+    async def generate_daikon_inputs(self, var_name: str) -> (str, str):
+        response = await self._execute(f'__burdock__.analyze(\"{var_name}\")')
+        (decls_path, dtrace_path) = ast.literal_eval(response.content['data']['text/plain'])
+        return decls_path, dtrace_path
 
 
 class MultiBurdockManager:

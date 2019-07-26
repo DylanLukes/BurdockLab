@@ -1,5 +1,8 @@
 import json
 import uuid
+from asyncio import subprocess
+
+from shlex import quote
 
 from jupyter_client import MultiKernelManager, KernelManager
 from notebook.base.handlers import APIHandler
@@ -129,11 +132,40 @@ class BurdockActionHandler(BaseBurdockHandler):
         return self.finish(await bm.list_dfvars())
 
 
-_burdock_kernel_id_regex = r"(?P<kernel_id>\w+-\w+-\w+-\w+-\w+)"
-_burdock_action_id_regex = r"(?P<action>ping|fancy_ping|dfvars)"
+# noinspection PyAbstractClass
+class BurdockAnalyzeHandler(BaseBurdockHandler):
+    async def post(self):
+        kernel_id = self.get_body_argument('kernel_id')
+        var_name = self.get_body_argument('var_name')
+
+        _ = self._get_kernel_manager(kernel_id)
+        bm = self._get_burdock_manager(kernel_id)
+
+        (decls_path, dtrace_path) = await bm.generate_daikon_inputs(var_name)
+
+        cmd = ("java -cp $DAIKONDIR/daikon.jar daikon.Daikon"
+               " --nohierarchy "
+               f" {quote(decls_path)}"
+               f" {quote(dtrace_path)}")
+
+        proc = await subprocess.create_subprocess_shell(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+
+        await proc.wait()
+        stdout, stderr = await proc.communicate()
+
+        return self.finish(json.dumps(stdout.decode()))
+
+
+_kernel_id_re = r"(?P<kernel_id>\w+-\w+-\w+-\w+-\w+)"
+_action_re = r"(?P<action>ping|fancy_ping|dfvars)"
+_var_name_re = r"(?P<var_name>\w+-\w+-\w+-\w+-\w+)"
 
 default_handlers = [
     (r"/api/burdock/?", MultiBurdockHandler),
-    (r"/api/burdock/%s" % _burdock_kernel_id_regex, BurdockHandler),
-    (r"/api/burdock/%s/%s" % (_burdock_kernel_id_regex, _burdock_action_id_regex), BurdockActionHandler)
+    (r"/api/burdock/analyze", BurdockAnalyzeHandler),
+    (r"/api/burdock/%s" % _kernel_id_re, BurdockHandler),
+    (r"/api/burdock/%s/%s" % (_kernel_id_re, _action_re), BurdockActionHandler),
 ]
