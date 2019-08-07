@@ -1,34 +1,20 @@
-import {
-    ILayoutRestorer,
-    JupyterFrontEnd,
-    JupyterFrontEndPlugin
-} from '@jupyterlab/application';
+import {ILayoutRestorer, JupyterFrontEnd, JupyterFrontEndPlugin} from '@jupyterlab/application';
+import {ICommandPalette, WidgetTracker} from '@jupyterlab/apputils';
+import {ISettingRegistry} from '@jupyterlab/coreutils';
+import {INotebookTracker, NotebookPanel} from '@jupyterlab/notebook';
 
-import {
-    ICommandPalette,
-    WidgetTracker
-} from '@jupyterlab/apputils';
+import {DockLayout} from '@phosphor/widgets';
 
-import {
-    ISettingRegistry
-} from '@jupyterlab/coreutils';
+import {BurdockPanel, CommandIDs, IBurdockTracker} from '@burdocklab/burdocklab';
 
-import {
-    DockLayout
-} from "@phosphor/widgets";
-
-
-import {CommandIDs} from "./commands";
-import {IBurdockTracker} from "./tokens";
-import {BurdockPanel} from "./widget";
-
-import '../style/index.css';
+import '../../burdocklab/style/index.css';
 
 function activateBurdock(
     app: JupyterFrontEnd,
     palette: ICommandPalette,
     restorer: ILayoutRestorer,
-    // settingRegistry: ISettingRegistry
+    settingRegistry: ISettingRegistry,
+    notebooks: INotebookTracker
 ) {
     console.log('JupyterLab extension jupyter-burdock is activating!');
 
@@ -54,9 +40,7 @@ function activateBurdock(
          */
         insertMode?: DockLayout.InsertMode;
 
-        /**
-         * Whether to activate the widget.  Defaults to `true`.
-         */
+        /** Whether to activate the widget.  Defaults to `true`. */
         activate?: boolean;
     }
 
@@ -65,7 +49,7 @@ function activateBurdock(
 
         await manager.ready;
 
-        const panel = new BurdockPanel(manager);
+        const panel = new BurdockPanel({manager});
 
         await tracker.add(panel);
 
@@ -76,10 +60,11 @@ function activateBurdock(
         return panel;
     }
 
+    // Menu Items
+    // ----------
+
     interface IOpenOptions extends Partial<BurdockPanel.IOptions> {
-        /**
-         * Whether to active the widget. Defaults to `true`.
-         */
+        /** Whether to active the widget. Defaults to `true`. */
         activate?: boolean
     }
 
@@ -110,6 +95,22 @@ function activateBurdock(
         palette.addItem({command, category, args: {isPalette: true}});
     });
 
+    // Signal Management
+    // -----------------
+
+    notebooks.widgetAdded.connect((sender, nbPanel: NotebookPanel) => {
+        console.log("ADDED: ", nbPanel);
+    });
+
+    notebooks.widgetUpdated.connect((sender, nbPanel: NotebookPanel) => {
+        console.log("UPDATED: ", nbPanel);
+    });
+
+    notebooks.currentChanged.connect((sender, nbPanel: NotebookPanel) => {
+        console.log("CURRENT: ", nbPanel);
+        console.log("hello world!");
+    });
+
     return tracker;
 }
 
@@ -122,7 +123,8 @@ const trackerPlugin: JupyterFrontEndPlugin<IBurdockTracker> = {
     requires: [
         ICommandPalette,
         ILayoutRestorer,
-        ISettingRegistry
+        ISettingRegistry,
+        INotebookTracker
     ],
     activate: activateBurdock,
     autoStart: true,

@@ -1,0 +1,48 @@
+{
+  "name": "@burdocklab/burdocklab-extension",
+  "version": "0.0.1-alpha.0",
+  "description": "A JupyterLab extension.",
+  "keywords": [
+    "jupyter",
+    "jupyterlab",
+    "jupyterlab-extension"
+  ],
+  "homepage": "https://github.com/DylanLukes/jupyter-burdock",
+  "bugs": {
+    "url": "https://github.com/DylanLukes/jupyter-burdock/issues"
+  },
+  "license": "BSD-3-Clause",
+  "author": "Dylan A. Lukes",
+  "files": [
+    "lib/**/*.{d.ts,eot,gif,html,jpg,js,js.map,json,png,svg,woff2,ttf}",
+    "style/**/*.{css,eot,gif,html,jpg,json,png,svg,woff2,ttf}"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DylanLukes/jupyter-burdock.git"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf lab/lib",
+    "prepare": "npm run clean && npm run build",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "^1.0.2",
+    "@jupyterlab/apputils": "^1.0.2",
+    "@jupyterlab/notebook": "^1.0.2",
+    "@jupyterlab/coreutils": "^3.0.0",
+    "@phosphor/coreutils": "^1.3.1",
+    "@phosphor/widgets": "^1.8.0",
+    "@burdocklab/burdock": "^0.0.1-alpha.0"
+  },
+  "devDependencies": {
+    "rimraf": "~2.6.2",
+    "typescript": "~3.5.1"
+  },
+  "jupyterlab": {
+    "extension": true
+  }
+}

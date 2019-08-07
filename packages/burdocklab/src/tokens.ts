@@ -1,9 +1,11 @@
 import {IWidgetTracker} from "@jupyterlab/apputils";
 import {Token} from "@phosphor/coreutils";
-import {BurdockPanel} from "./widget";
+
+import {BurdockPanel} from "./panel";
 
 export const IBurdockTracker = new Token<IBurdockTracker>(
-    '@burdocklab/core:IBurdockTracker'
+    '@burdocklab/burdocklab:IBurdockTracker'
 );
 
-export interface IBurdockTracker extends IWidgetTracker<BurdockPanel> {}
+export interface IBurdockTracker extends IWidgetTracker<BurdockPanel> {
+}
