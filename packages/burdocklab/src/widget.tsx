@@ -35,8 +35,8 @@ export class BurdockWidget extends VDomRenderer<BurdockModel> {
 }
 
 export namespace BurdockWidget {
-    export const WIDGET_ID = 'burdock-lab';
-    export const WIDGET_CLASS = 'jp-BurdockWidget';
+    export const WIDGET_ID = 'burdocklab-widget';
+    export const WIDGET_CLASS = 'jp-BurdockLabWidget';
 
     export const WIDGET_TITLE = 'Burdock Lab';
 
