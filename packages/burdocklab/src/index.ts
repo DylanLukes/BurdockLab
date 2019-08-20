@@ -1,5 +1,4 @@
 export * from './commands';
-export * from './model';
-export * from './panel';
-export * from './widget';
+export * from './handler';
+export * from './inspector';
 export * from './tokens';

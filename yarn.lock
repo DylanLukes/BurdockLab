@@ -149,6 +149,29 @@
     react-dom "~16.8.4"
     sanitize-html "~1.20.1"
 
+"@jupyterlab/apputils@^1.0.4":
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/@jupyterlab/apputils/-/apputils-1.0.4.tgz#67e4d37b658099bc860e8fe81cb791eae29c5ab9"
+  integrity sha512-DNjHFXsRpnowXcRDS9jD9QxaJeLShTx1RbZyOEBckCN+1C2aPEWmrTmLVzy2Vud8LwnVBarl1EWkks5sv/8w2g==
+  dependencies:
+    "@jupyterlab/coreutils" "^3.0.0"
+    "@jupyterlab/services" "^4.0.4"
+    "@jupyterlab/ui-components" "^1.0.0"
+    "@phosphor/algorithm" "^1.1.3"
+    "@phosphor/commands" "^1.6.3"
+    "@phosphor/coreutils" "^1.3.1"
+    "@phosphor/disposable" "^1.2.0"
+    "@phosphor/domutils" "^1.1.3"
+    "@phosphor/messaging" "^1.2.3"
+    "@phosphor/properties" "^1.1.3"
+    "@phosphor/signaling" "^1.2.3"
+    "@phosphor/virtualdom" "^1.1.3"
+    "@phosphor/widgets" "^1.8.0"
+    "@types/react" "~16.8.18"
+    react "~16.8.4"
+    react-dom "~16.8.4"
+    sanitize-html "~1.20.1"
+
 "@jupyterlab/attachments@^1.0.2":
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/@jupyterlab/attachments/-/attachments-1.0.2.tgz#0c6d46043c861e76e9a94c1ecb9045eb452bf3f5"
@@ -304,6 +327,20 @@
     "@phosphor/widgets" "^1.8.0"
     react "~16.8.4"
 
+"@jupyterlab/launcher@^1.0.4":
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/@jupyterlab/launcher/-/launcher-1.0.4.tgz#a4e419c4c18cbecfcf87fa5ed46064ac8e1d4f20"
+  integrity sha512-baCvH+Zd1DMyjqVJXCz+zFY05qAA0AAzzS1Y4eBqg1jF4O+mHN40jtS33xYnnWnastrfIxpaucz9oh1f8q1dpA==
+  dependencies:
+    "@jupyterlab/apputils" "^1.0.4"
+    "@phosphor/algorithm" "^1.1.3"
+    "@phosphor/commands" "^1.6.3"
+    "@phosphor/coreutils" "^1.3.1"
+    "@phosphor/disposable" "^1.2.0"
+    "@phosphor/properties" "^1.1.3"
+    "@phosphor/widgets" "^1.8.0"
+    react "~16.8.4"
+
 "@jupyterlab/notebook@^1.0.2":
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/@jupyterlab/notebook/-/notebook-1.0.2.tgz#5f48bbac20f1c4de4f23d0961e72bd5f0ea6ac6b"
@@ -385,6 +422,20 @@
 "@jupyterlab/services@^4.0.2":
   version "4.0.2"
   resolved "https://registry.yarnpkg.com/@jupyterlab/services/-/services-4.0.2.tgz#88561f5ef6099bf8462efc1402541738a8b11f23"
+  dependencies:
+    "@jupyterlab/coreutils" "^3.0.0"
+    "@jupyterlab/observables" "^2.2.0"
+    "@phosphor/algorithm" "^1.1.3"
+    "@phosphor/coreutils" "^1.3.1"
+    "@phosphor/disposable" "^1.2.0"
+    "@phosphor/signaling" "^1.2.3"
+    node-fetch "^2.6.0"
+    ws "^7.0.0"
+
+"@jupyterlab/services@^4.0.4":
+  version "4.0.4"
+  resolved "https://registry.yarnpkg.com/@jupyterlab/services/-/services-4.0.4.tgz#757c259ad55c1fb884970008027a238e241c6e5f"
+  integrity sha512-IUTs61AcEb+UVzYNf8oRGg8xuZriwITmhXej8vDVt7sgmeUpcGdC0AsGKyOgX+ztWVhcqdxAnVEDyfoBdMG0Cg==
   dependencies:
     "@jupyterlab/coreutils" "^3.0.0"
     "@jupyterlab/observables" "^2.2.0"

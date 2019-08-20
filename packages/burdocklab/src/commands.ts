@@ -1,4 +1,4 @@
 export namespace CommandIDs {
-    export const create = 'burdocklab:create';
     export const open = 'burdocklab:open';
+    export const refresh = 'burdocklab:refresh';
 }
