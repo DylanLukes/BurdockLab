@@ -1,7 +1,7 @@
 import {VDomModel} from "@jupyterlab/apputils";
 
 export class BurdockModel extends VDomModel {
-    private _testString: string
+    private _testString: string = "hello world!";
 
     get testString(): string {
         return this._testString;

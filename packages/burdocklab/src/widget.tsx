@@ -5,13 +5,13 @@ import {ServiceManager} from "@jupyterlab/services";
 // import {Signal} from "@phosphor/signaling";
 
 export class BurdockWidget extends VDomRenderer<BurdockModel> {
-    private readonly _manager: ServiceManager;
+    private readonly manager: ServiceManager.IManager;
 
-    constructor(manager: ServiceManager, options?: BurdockWidget.IOptions) {
+    constructor(manager: ServiceManager.IManager, options?: BurdockWidget.IOptions) {
         super();
 
-        this._manager = manager;
-        console.log(this._manager);
+        this.manager = manager;
+        void this.manager;
 
         this.id = BurdockWidget.WIDGET_ID;
         this.title.label = BurdockWidget.WIDGET_TITLE;
@@ -20,7 +20,6 @@ export class BurdockWidget extends VDomRenderer<BurdockModel> {
     }
 
     protected render(): Array<React.ReactElement<any>> | React.ReactElement<any> | null {
-        console.log("Rendering BurdockWidget!");
         return (
           <dl>
               <dt>Active Notebook Panel:</dt>
@@ -42,6 +41,6 @@ export namespace BurdockWidget {
 
     export interface IOptions {
         /** Doesn't do anything. */
-        foo?: boolean
+        // foo?: boolean
     }
 }

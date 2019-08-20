@@ -3,14 +3,18 @@ import {ServiceManager} from "@jupyterlab/services";
 import {ClientSession, IClientSession} from "@jupyterlab/apputils";
 import {UUID} from "@phosphor/coreutils";
 import {IDisposable} from "@phosphor/disposable";
+import {BurdockWidget} from "./widget";
+import {BurdockModel} from "./model";
 
 export class BurdockPanel extends Panel {
-    readonly manager: ServiceManager.IManager;
-
-    private readonly session: ClientSession;
+    public readonly manager: ServiceManager.IManager;
+    public readonly session: ClientSession;
 
     constructor(options: BurdockPanel.IOptions) {
         super();
+
+        console.log("Creating BurdockPanel!", options);
+
         // this.title.iconClass =/
         this.title.closable = true;
 
@@ -46,9 +50,13 @@ export class BurdockPanel extends Panel {
         });
 
         void this.session;
+
         // this.session.kernelChanged.connect(void 0);
         // this.session.propertyChanged.connect(void 0);
 
+        let widget = new BurdockWidget(manager, {});
+        widget.model = new BurdockModel();
+        this.addWidget(widget);
     }
 }
 

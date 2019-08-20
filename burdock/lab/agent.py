@@ -1,11 +1,12 @@
-from typing import List
 import tempfile
+from typing import List
 
 import pandas as pd
 from IPython import InteractiveShell
-from jupyter_client.session import Session
-
 from burdock.core import Burdock
+from ipykernel.ipkernel import IPythonKernel
+from ipykernel.comm import CommManager, Comm
+from jupyter_client.session import Session
 
 
 class BurdockAgent:
@@ -14,22 +15,52 @@ class BurdockAgent:
     to fulfill requests for information.
     """
     shell: InteractiveShell
-    _df_vars: List[str]
+    # comm_manager:
+
+    dataframes: List[str]
 
     def __init__(self, shell: InteractiveShell):
         self.shell = shell
-        self.session = Session()
-        self._df_vars = list()
 
-        self._install_in_shell()
-        self._register_events()
-        self._update_df_vars()
+        self.session = Session()
+        self.dataframes = list()
+
+        self.install()
+        self.update_dataframes()
+
+    # --------------------------------------------------------------------------
+    # Delegated Properties
+    # --------------------------------------------------------------------------
+    @property
+    def kernel(self) -> IPythonKernel:
+        # This does exist, it's just set by the IPyKernel itself,
+        # e.g. as `self.shell.kernel = self`
+        # noinspection PyUnresolvedReferences
+        return self.shell.kernel
+
+    @property
+    def comm_manager(self) -> CommManager:
+        return self.kernel.comm_manager
 
     # --------------------------------------------------------------------------
     # Voodoo
     # --------------------------------------------------------------------------
-    def _install_in_shell(self):
+    def install(self):
+        # Place a reference/GC anchor in the user namespace.
         self.shell.user_ns['__burdock__'] = self
+
+        # Register for post_execute events (so that we can update our dataframes).
+        self.shell.events.register('post_execute', self.update_dataframes)
+
+        # Establish a comm target to talk to the front end.
+        def dummy_target_func(comm: Comm, open_msg):
+            print(f"OPEN MESSAGE: {open_msg}")
+
+            @comm.on_msg
+            def _recv(msg):
+                print(f"RECEIVED MESSAGE: {msg}")
+
+        self.comm_manager.register_target('burdocklab_main_target', dummy_target_func)
 
     # --------------------------------------------------------------------------
     # DataFrame variable tracking
@@ -37,9 +68,9 @@ class BurdockAgent:
 
     @property
     def data_frame_variables(self):
-        return self._df_vars
+        return self.dataframes
 
-    def _get_df_vars(self):
+    def get_dataframes(self):
         user_ns = self.shell.user_ns
         user_ns_hidden = self.shell.user_ns_hidden
 
@@ -54,8 +85,8 @@ class BurdockAgent:
         out.sort()
         return out
 
-    def _update_df_vars(self):
-        self._df_vars = self._get_df_vars()
+    def update_dataframes(self):
+        self.dataframes = self.get_dataframes()
 
     # --------------------------------------------------------------------------
     # Running Daikon (via Burdock)
@@ -72,13 +103,6 @@ class BurdockAgent:
         burdock.match()
         burdock.expand()
 
-        # UH OH: your code should not rely on a temporary file
-        # created using this function having or not having a
-        # visible name in the file system.
-
-        # Note: If delete is true (the default), the file
-        # is deleted as soon as it is closed.
-
         # todo: don't spew so many tmp files...
         decls_tmp = tempfile.NamedTemporaryFile(mode='w+',
                                                 prefix='burdock-',
@@ -93,13 +117,3 @@ class BurdockAgent:
         burdock.write_dtrace(dtrace_tmp)
 
         return decls_tmp.name, dtrace_tmp.name
-
-    # --------------------------------------------------------------------------
-    # IPython Events
-    # --------------------------------------------------------------------------
-
-    def _register_events(self):
-        self.shell.events.register('post_execute', self.post_execute)
-
-    def post_execute(self):
-        self._update_df_vars()

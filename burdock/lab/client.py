@@ -36,8 +36,8 @@ class BurdockKernelClient(ThreadedKernelClient):
                        close_pred: MessagePredicate = None,
                        *args, **kwargs) -> FiniteQueue:
         """
-            Similar to KernelClient.execute, but with asynchronous goodness.
-            This is intended only for shell channel request/reply style messages.
+        Similar to KernelClient.execute, but with asynchronous goodness.
+        This is intended only for shell channel request/reply style messages.
         """
 
         raw_msg, reply_future = self.shell_channel.prepare_request(code, self.session, *args, **kwargs)
