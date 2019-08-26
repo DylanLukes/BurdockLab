@@ -1,3 +1,4 @@
+export * from './connector';
 export * from './commands';
 export * from './handler';
 export * from './inspector';

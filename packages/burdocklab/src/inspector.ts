@@ -25,8 +25,6 @@ export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspe
         this.title.iconClass = "jp-SpreadsheetIcon";
         this.title.closable = true;
         this.addClass(BurdockInspectorPanel.PANEL_CLASS);
-
-
     }
 
     get source(): IBurdockInspector.IInspectable | null {

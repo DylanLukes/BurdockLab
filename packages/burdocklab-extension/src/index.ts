@@ -29,6 +29,7 @@ import {
 import { ILauncher } from "@jupyterlab/launcher";
 
 import {
+    BurdockConnector,
     BurdockInspectionHandler,
     BurdockInspectorPanel,
     CommandIDs,
@@ -36,7 +37,6 @@ import {
 } from '@burdocklab/burdocklab';
 
 import '../../burdocklab/style/index.css';
-import { BurdockConnector } from "@burdocklab/burdocklab/lib/connector";
 
 /**
  * A service providing Burdock (inspection).
@@ -159,12 +159,40 @@ const notebooks: JupyterFrontEndPlugin<void> = {
             const {session, content: {rendermime}} = nb;
             const connector = new BurdockConnector({session});
 
+            // Register the handler for this id.
             const handler = new BurdockInspectionHandler({connector, rendermime})
             handlers[nb.id] = handler;
 
+            // Set the initial editor.
             let cell = nb.content.activeCell;
             handler.editor = cell && cell.editor;
+
+            // Listen for prompt creation.
+            nb.content.activeCellChanged.connect((sender, cell) => {
+                handler.editor = cell && cell.editor;
+            })
+
+            nb.disposed.connect(() => {
+                delete handlers[nb.id];
+                handler.dispose();
+            })
         });
+
+        // Keep track of notebook instances and set inspector source.
+        shell.currentChanged.connect((sender, args) => {
+           let widget = args.newValue;
+           if (!widget || !notebooks.has(widget)) return;
+
+           let source = handlers[widget.id];
+           if (source) {
+               inspector.source = source;
+           }
+        });
+
+        app.contextMenu.addItem({
+            command: CommandIDs.open,
+            selector: '.jp-Notebook'
+        })
     }
 };
 
@@ -204,6 +232,7 @@ const kernels: JupyterFrontEndPlugin<void> = {
         app: JupyterFrontEnd
     ) => {
         const manager = new KernelManager();
+        const seenKernels = new Set<string>();
 
         function isSupported(kernel: Kernel.IModel): boolean {
             return kernel.name === 'python3';
@@ -230,18 +259,29 @@ const kernels: JupyterFrontEndPlugin<void> = {
         }
 
         async function ensure(kernel: Kernel.IModel) {
+            console.log(`Burdock: checking (${kernel.id}) (${kernel.name})...`);
             if (!isSupported(kernel)) {
+                console.log(`Burdock: not supported (${kernel.id}) (${kernel.name})...`);
+                seenKernels.add(kernel.id);
                 return
             }
+            console.log(`Burdock: supported (${kernel.id}) (${kernel.name})...`);
 
             if (!(await isInstalled(kernel))) {
+                console.log(`Burdock: installing (${kernel.id}) (${kernel.name})`);
                 await install(kernel);
+                console.log(`Burdock: installed (${kernel.id}) (${kernel.name})`);
+            } else {
+                console.log(`Burdock: already installed (${kernel.id}) (${kernel.name})...`);
             }
         }
 
         manager.runningChanged.connect(async (sender, kernels) => {
             for (let kernel of kernels) {
-                await ensure(kernel);
+                if (!seenKernels.has(kernel.id)) {
+                    await ensure(kernel);
+                }
+                seenKernels.add(kernel.id);
             }
         })
     }

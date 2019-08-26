@@ -13,6 +13,11 @@ export interface IBurdockInspector {
 export namespace IBurdockInspector {
     export interface IInspectable {
         /**
+         * A signal emitted when the inspectable is cleared.
+         */
+        cleared: ISignal<any, void>;
+
+        /**
          * A signal emitted when the inspectable is disposed.
          */
         disposed: ISignal<any, void>;
