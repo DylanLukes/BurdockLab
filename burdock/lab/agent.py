@@ -54,11 +54,13 @@ class BurdockAgent:
 
         # Establish a comm target to talk to the front end.
         def dummy_target_func(comm: Comm, open_msg):
-            print(f"OPEN MESSAGE: {open_msg}")
-
             @comm.on_msg
             def _recv(msg):
-                print(f"RECEIVED MESSAGE: {msg}")
+                comm.send({"world": "hello"})
+
+            @comm.on_close
+            def _close(msg):
+                pass
 
         self.comm_manager.register_target('burdocklab_target', dummy_target_func)
 

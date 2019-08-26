@@ -156,11 +156,11 @@ const notebooks: JupyterFrontEndPlugin<void> = {
         const handlers: { [id: string]: BurdockInspectionHandler } = {};
 
         notebooks.widgetAdded.connect((sender: INotebookTracker, nb: NotebookPanel) => {
-            const {session, content: {rendermime}} = nb;
-            const connector = new BurdockConnector({session});
+            const {id, session, content: {rendermime}} = nb;
+            const connector = new BurdockConnector({id, session});
 
             // Register the handler for this id.
-            const handler = new BurdockInspectionHandler({connector, rendermime})
+            const handler = new BurdockInspectionHandler({connector, rendermime});
             handlers[nb.id] = handler;
 
             // Set the initial editor.
@@ -170,7 +170,7 @@ const notebooks: JupyterFrontEndPlugin<void> = {
             // Listen for prompt creation.
             nb.content.activeCellChanged.connect((sender, cell) => {
                 handler.editor = cell && cell.editor;
-            })
+            });
 
             nb.disposed.connect(() => {
                 delete handlers[nb.id];
