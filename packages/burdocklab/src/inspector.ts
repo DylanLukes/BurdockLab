@@ -10,7 +10,7 @@ import {
 import { IBurdockInspector } from "./tokens";
 
 export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspector {
-    private _source: IBurdockInspector.IBurdockInspectable | null;
+    private _source: IBurdockInspector.IInspectable | null;
 
     readonly toolbar: Toolbar;
 
@@ -29,11 +29,11 @@ export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspe
 
     }
 
-    get source(): IBurdockInspector.IBurdockInspectable | null {
+    get source(): IBurdockInspector.IInspectable | null {
         return this._source;
     }
 
-    set source(source: IBurdockInspector.IBurdockInspectable | null) {
+    set source(source: IBurdockInspector.IInspectable | null) {
         if (this._source === source) return;
 
         // Disconnect any signal handlers.

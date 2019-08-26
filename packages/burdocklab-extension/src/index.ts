@@ -15,7 +15,10 @@ import { URLExt } from "@jupyterlab/coreutils";
 
 import { IConsoleTracker } from '@jupyterlab/console';
 
-import { INotebookTracker } from "@jupyterlab/notebook";
+import {
+    INotebookTracker,
+    NotebookPanel
+} from "@jupyterlab/notebook";
 
 import {
     Kernel,
@@ -26,12 +29,14 @@ import {
 import { ILauncher } from "@jupyterlab/launcher";
 
 import {
+    BurdockInspectionHandler,
     BurdockInspectorPanel,
     CommandIDs,
     IBurdockInspector,
 } from '@burdocklab/burdocklab';
 
 import '../../burdocklab/style/index.css';
+import { BurdockConnector } from "@burdocklab/burdocklab/lib/connector";
 
 /**
  * A service providing Burdock (inspection).
@@ -56,7 +61,7 @@ const inspector: JupyterFrontEndPlugin<IBurdockInspector> = {
         const namespace = 'burdocklab';
         const tracker = new WidgetTracker<MainAreaWidget<BurdockInspectorPanel>>({namespace});
 
-        let source: IBurdockInspector.IBurdockInspectable | null = null;
+        let source: IBurdockInspector.IInspectable | null = null;
         let inspector: MainAreaWidget<BurdockInspectorPanel>;
 
         async function openInspector(): Promise<MainAreaWidget<BurdockInspectorPanel>> {
@@ -112,10 +117,10 @@ const inspector: JupyterFrontEndPlugin<IBurdockInspector> = {
 
         let proxy: IBurdockInspector;
         proxy = Object.defineProperty({}, 'source', {
-            get: (): IBurdockInspector.IBurdockInspectable | null => {
+            get: (): IBurdockInspector.IInspectable | null => {
                 return !inspector || inspector.isDisposed ? null : inspector.content.source
             },
-            set: (source: IBurdockInspector.IBurdockInspectable | null) => {
+            set: (source: IBurdockInspector.IInspectable | null) => {
                 source = source && !source.isDisposed ? source : null;
                 if (inspector && !inspector.isDisposed) {
                     inspector.content.source = source;
@@ -147,6 +152,19 @@ const notebooks: JupyterFrontEndPlugin<void> = {
         void inspector;
         void notebooks;
         void shell;
+
+        const handlers: { [id: string]: BurdockInspectionHandler } = {};
+
+        notebooks.widgetAdded.connect((sender: INotebookTracker, nb: NotebookPanel) => {
+            const {session, content: {rendermime}} = nb;
+            const connector = new BurdockConnector({session});
+
+            const handler = new BurdockInspectionHandler({connector, rendermime})
+            handlers[nb.id] = handler;
+
+            let cell = nb.content.activeCell;
+            handler.editor = cell && cell.editor;
+        });
     }
 };
 

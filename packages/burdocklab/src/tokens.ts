@@ -7,11 +7,11 @@ export const IBurdockInspector = new Token<IBurdockInspector>(
 );
 
 export interface IBurdockInspector {
-    source: IBurdockInspector.IBurdockInspectable | null;
+    source: IBurdockInspector.IInspectable | null;
 }
 
 export namespace IBurdockInspector {
-    export interface IBurdockInspectable {
+    export interface IInspectable {
         /**
          * A signal emitted when the inspectable is disposed.
          */
@@ -25,7 +25,7 @@ export namespace IBurdockInspector {
         /**
          * A signal emitted when an inspector value is generated.
          */
-        inspected: ISignal<any, IBurdockInspectorUpdate>;
+        inspected: ISignal<any, IUpdate>;
 
         /**
          * Indicates whether the inspectable source emits signals.
@@ -37,7 +37,7 @@ export namespace IBurdockInspector {
         standby: boolean;
     }
 
-    export interface IBurdockInspectorUpdate {
+    export interface IUpdate {
         /**
          * The content being sent to the inspector for display.
          */
