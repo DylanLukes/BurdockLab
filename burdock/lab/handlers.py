@@ -1,8 +1,5 @@
 import json
 import uuid
-from asyncio import subprocess
-
-from shlex import quote
 
 from jupyter_client import MultiKernelManager, KernelManager
 from notebook.base.handlers import APIHandler
@@ -11,9 +8,6 @@ from tornado import web
 from burdock.lab.errors.http import KernelNotFound, KernelNotIPython, BurdockNotFound, \
     BurdockAlreadyExists
 from burdock.lab.manager import MultiBurdockManager, BurdockManager
-
-# todo: use a less magical number
-TIMEOUT = 15
 
 
 class BaseBurdockHandler(APIHandler):
@@ -70,7 +64,9 @@ class MultiBurdockHandler(BaseBurdockHandler):
     async def post(self, *args, **kwargs):
         multi_bm = self.multi_burdock_manager
 
-        kernel_id = self.get_body_argument('kernel_id')
+        body = json.loads(self.request.body)
+        kernel_id = body.get('kernel_id')
+
         _ = self._get_kernel_manager(kernel_id)
 
         if kernel_id in multi_bm:
@@ -88,84 +84,22 @@ class BurdockHandler(BaseBurdockHandler):
     async def head(self, kernel_id: str):
         _ = self._get_kernel_manager(kernel_id)
         _ = self._get_burdock_manager(kernel_id)
+
         return self.finish()
 
     @web.authenticated
     async def get(self, kernel_id: uuid):
-        multi_bm = self.multi_burdock_manager
-
         _ = self._get_kernel_manager(kernel_id)
-        _ = self._get_burdock_manager(kernel_id)
+        bm = self._get_burdock_manager(kernel_id)
 
-        response = json.dumps(multi_bm.instance_model(kernel_id))
+        response = json.dumps(bm.is_installed)
 
         return self.finish(response)
 
 
-# noinspection PyAbstractClass
-class BurdockActionHandler(BaseBurdockHandler):
-    async def get(self, kernel_id: str, action: str):
-        if action == 'ping':
-            return await self.ping(kernel_id)
-        if action == 'fancy_ping':
-            return await self.fancy_ping(kernel_id)
-        if action == 'dfvars':
-            return await self.list_dfvars(kernel_id)
-
-    async def ping(self, kernel_id: str):
-        _ = self._get_kernel_manager(kernel_id)
-        bm = self._get_burdock_manager(kernel_id)
-
-        return self.finish(await bm.ping())
-
-    async def fancy_ping(self, kernel_id: str):
-        """This ping is fancy. It awaits multiple outputs from the kernel."""
-        _ = self._get_kernel_manager(kernel_id)
-        bm = self._get_burdock_manager(kernel_id)
-
-        return self.finish(await bm.fancy_ping())
-
-    async def list_dfvars(self, kernel_id: str):
-        _ = self._get_kernel_manager(kernel_id)
-        bm = self._get_burdock_manager(kernel_id)
-
-        return self.finish(await bm.list_dfvars())
-
-
-# noinspection PyAbstractClass
-class BurdockAnalyzeHandler(BaseBurdockHandler):
-    async def post(self):
-        kernel_id = self.get_body_argument('kernel_id')
-        var_name = self.get_body_argument('var_name')
-
-        _ = self._get_kernel_manager(kernel_id)
-        bm = self._get_burdock_manager(kernel_id)
-
-        (decls_path, dtrace_path) = await bm.generate_daikon_inputs(var_name)
-
-        cmd = ("java -cp $DAIKONDIR/daikon.jar daikon.Daikon"
-               " --nohierarchy "
-               f" {quote(decls_path)}"
-               f" {quote(dtrace_path)}")
-
-        proc = await subprocess.create_subprocess_shell(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
-
-        await proc.wait()
-        stdout, stderr = await proc.communicate()
-
-        return self.finish(json.dumps(stdout.decode()))
-
-
 _kernel_id_re = r"(?P<kernel_id>\w+-\w+-\w+-\w+-\w+)"
-_action_re = r"(?P<action>ping|fancy_ping|dfvars)"
-_var_name_re = r"(?P<var_name>\w+-\w+-\w+-\w+-\w+)"
 
 default_handlers = [
     (r"/api/burdock/?", MultiBurdockHandler),
-    (r"/api/burdock/analyze", BurdockAnalyzeHandler),
     (r"/api/burdock/%s" % _kernel_id_re, BurdockHandler),
-    (r"/api/burdock/%s/%s" % (_kernel_id_re, _action_re), BurdockActionHandler),
 ]

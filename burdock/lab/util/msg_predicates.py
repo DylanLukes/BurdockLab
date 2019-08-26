@@ -1,4 +1,4 @@
-from burdock.lab.message import Message
+from burdock.lab.kernel.message import Message
 
 
 def filter_none(_msg: Message) -> bool:

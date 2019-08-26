@@ -4,8 +4,8 @@ from typing import List
 import pandas as pd
 from IPython import InteractiveShell
 from burdock.core import Burdock
-from ipykernel.ipkernel import IPythonKernel
 from ipykernel.comm import CommManager, Comm
+from ipykernel.ipkernel import IPythonKernel
 from jupyter_client.session import Session
 
 
@@ -60,7 +60,7 @@ class BurdockAgent:
             def _recv(msg):
                 print(f"RECEIVED MESSAGE: {msg}")
 
-        self.comm_manager.register_target('burdocklab_main_target', dummy_target_func)
+        self.comm_manager.register_target('burdocklab_target', dummy_target_func)
 
     # --------------------------------------------------------------------------
     # DataFrame variable tracking

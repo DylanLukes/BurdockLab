@@ -11,11 +11,19 @@ import {
     WidgetTracker
 } from '@jupyterlab/apputils';
 
+import { URLExt } from "@jupyterlab/coreutils";
+
 import { IConsoleTracker } from '@jupyterlab/console';
 
 import { INotebookTracker } from "@jupyterlab/notebook";
 
-import {ILauncher} from "@jupyterlab/launcher";
+import {
+    Kernel,
+    KernelManager,
+    ServerConnection
+} from "@jupyterlab/services";
+
+import { ILauncher } from "@jupyterlab/launcher";
 
 import {
     BurdockInspectorPanel,
@@ -43,7 +51,7 @@ const inspector: JupyterFrontEndPlugin<IBurdockInspector> = {
         launcher: ILauncher | null,
         restorer: ILayoutRestorer | null
     ): IBurdockInspector => {
-        const { commands, shell } = app;
+        const {commands, shell} = app;
         const label = BurdockInspectorPanel.PANEL_TITLE;
         const namespace = 'burdocklab';
         const tracker = new WidgetTracker<MainAreaWidget<BurdockInspectorPanel>>({namespace});
@@ -67,7 +75,7 @@ const inspector: JupyterFrontEndPlugin<IBurdockInspector> = {
             }
 
             if (!inspector.isAttached) {
-                shell.add(inspector, 'main', { activate: false });
+                shell.add(inspector, 'main', {activate: false});
             }
             shell.activateById(inspector.id);
 
@@ -164,10 +172,68 @@ const consoles: JupyterFrontEndPlugin<void> = {
     }
 };
 
+/**
+ * The kernels plugin detects changes in the set of running
+ * kernels and ensures Burdock is installed in any Python3 kernels.
+ */
+const kernels: JupyterFrontEndPlugin<void> = {
+    id: '@burdocklab/burdocklab-extension:kernels',
+    requires: [
+        IBurdockInspector
+    ],
+    autoStart: true,
+    activate: (
+        app: JupyterFrontEnd
+    ) => {
+        const manager = new KernelManager();
+
+        function isSupported(kernel: Kernel.IModel): boolean {
+            return kernel.name === 'python3';
+        }
+
+        async function isInstalled(kernel: Kernel.IModel): Promise<boolean> {
+            const settings = ServerConnection.makeSettings({});
+            const url = URLExt.join(settings.baseUrl, `api/burdock/${kernel.id}`);
+            
+            const response = await ServerConnection.makeRequest(url, {}, settings);
+            return response.ok && (await response.json() !== false)
+        }
+
+        async function install(kernel: Kernel.IModel): Promise<Response> {
+            const settings = ServerConnection.makeSettings({});
+            const url = URLExt.join(settings.baseUrl, `api/burdock`);
+
+            return await ServerConnection.makeRequest(url, {
+                method: 'POST',
+                body: JSON.stringify({
+                    kernel_id: kernel.id
+                })
+            }, settings);
+        }
+
+        async function ensure(kernel: Kernel.IModel) {
+            if (!isSupported(kernel)) {
+                return
+            }
+
+            if (!(await isInstalled(kernel))) {
+                await install(kernel);
+            }
+        }
+
+        manager.runningChanged.connect(async (sender, kernels) => {
+            for (let kernel of kernels) {
+                await ensure(kernel);
+            }
+        })
+    }
+};
+
 const plugins: JupyterFrontEndPlugin<any>[] = [
     inspector,
     notebooks,
-    consoles
+    consoles,
+    kernels
 ];
 // noinspection JSUnusedGlobalSymbols
 export default plugins;

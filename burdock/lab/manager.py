@@ -6,11 +6,11 @@ from typing import Dict
 from jupyter_client import KernelManager, MultiKernelManager
 from jupyter_client.jsonutil import date_default
 
-from burdock.lab.client import BurdockKernelClient
-from burdock.lab.util.msg_predicates import filter_none, filter_stdout, filter_stderr, on_execution_idle
 from burdock.lab.errors.http import BurdockNotFound, KernelExecutionError, KernelNotFound
 from burdock.lab.errors.kernel import IPythonExecuteException, FancyPingFailed
-from burdock.lab.message import Message
+from burdock.lab.kernel.client import BurdockKernelClient
+from burdock.lab.kernel.message import Message
+from burdock.lab.util.msg_predicates import filter_stdout, filter_stderr, on_execution_idle
 
 
 class BurdockManager:

@@ -11,7 +11,7 @@ from tornado.platform.asyncio import BaseAsyncIOLoop
 from zmq import Socket
 from zmq.eventloop.zmqstream import ZMQStream
 
-from burdock.lab.message import Message
+from burdock.lab.kernel.message import Message
 from burdock.lab.util.finite_queue import FiniteQueue
 
 MessagePredicate = Callable[[Message], bool]
@@ -218,6 +218,7 @@ class PubSubAsyncChannel(AsyncChannel):
     The 'iopub' channel on the other hand is pub-sub. Messages are pushed
     from the kernel and received here. Communication is mono-directional.
     """
+
     def result(self, parent_msg_id) -> 'Future[Message]':
         result_future = self.register_future(
             parent_msg_id,

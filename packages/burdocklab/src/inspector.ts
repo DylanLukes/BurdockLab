@@ -1,17 +1,21 @@
-import {Panel, Widget} from "@phosphor/widgets";
+import {
+    StackedPanel,
+    Widget
+} from "@phosphor/widgets";
+
 import {
     Toolbar,
     ToolbarButton
 } from "@jupyterlab/apputils";
-import {IBurdockInspector} from "./tokens";
+import { IBurdockInspector } from "./tokens";
 
-export class BurdockInspectorPanel extends Panel implements IBurdockInspector {
-    public source: IBurdockInspector.IBurdockInspectable;
+export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspector {
+    private _source: IBurdockInspector.IBurdockInspectable | null;
 
     readonly toolbar: Toolbar;
 
     constructor(options: BurdockInspectorPanel.IOptions = {}) {
-        super(options);
+        super({...options} as StackedPanel.IOptions);
 
         // this.title.iconClass =/
         this.title.closable = true;
@@ -22,9 +26,38 @@ export class BurdockInspectorPanel extends Panel implements IBurdockInspector {
         this.title.closable = true;
         this.addClass(BurdockInspectorPanel.PANEL_CLASS);
 
-        let hello = document.createElement('h1');
-        hello.innerText = "Hello, Burdock!";
-        this.node.appendChild(hello);
+
+    }
+
+    get source(): IBurdockInspector.IBurdockInspectable | null {
+        return this._source;
+    }
+
+    set source(source: IBurdockInspector.IBurdockInspectable | null) {
+        if (this._source === source) return;
+
+        // Disconnect any signal handlers.
+        if (this._source) {
+            this._source.standby = true;
+            // this._source.inspected.disconnect(this.onInspectorUpdate, this);
+            // this._source.disposed.disconnect(this.onSourceDisposed, this);
+        }
+
+        // Reject a source that is already disposed.
+        if (source && source.isDisposed) {
+            console.warn("BurdockInspectorPanel was given a disposed source.");
+            source = null;
+        }
+
+        // Update the source.
+        this._source = source;
+
+        // Connect any new signal handlers.
+        if (this._source) {
+            this._source.standby = false;
+            // this._source.inspected.connect(this.onInspectorUpdate, this);
+            // this._source.disposed.connect(this.onSourceDisposed, this);
+        }
     }
 
     toolbarFactory(): Toolbar {
@@ -49,7 +82,7 @@ export namespace BurdockInspectorPanel {
     export const PANEL_CLASS = 'jp-BurdockInspectorPanel';
     export const PANEL_TITLE = 'Burdock Inspector';
 
-    export interface IOptions extends Panel.IOptions {
+    export interface IOptions {
 
     }
 }

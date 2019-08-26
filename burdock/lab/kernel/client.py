@@ -2,9 +2,9 @@ from jupyter_client import KernelManager
 from jupyter_client.threaded import ThreadedKernelClient
 from traitlets import Type
 
-from burdock.lab.message import Message
-from burdock.lab.util.channels import MessagePredicate, PubSubAsyncChannel, DealerRouterAsyncChannel
 from burdock.lab.errors.kernel import ExecuteError, ExecuteAbort
+from burdock.lab.kernel.message import Message
+from burdock.lab.util.channels import MessagePredicate, PubSubAsyncChannel, DealerRouterAsyncChannel
 from burdock.lab.util.finite_queue import FiniteQueue
 
 
