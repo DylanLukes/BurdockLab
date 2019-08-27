@@ -16,6 +16,7 @@ This is a JupyterLab integration to support displaying invariants for active not
 ## Installation
 
 ```bash
-jupyterlab labextension link @burdocklab/burdocklab --no-build
-jupyterlab labextension link @burdocklab/burdocklab-extension
+jupyter serverextension enable burdock.lab
+jupyter labextension link @burdocklab/burdocklab --no-build
+jupyter labextension link @burdocklab/burdocklab-extension
 ```

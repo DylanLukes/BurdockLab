@@ -1,9 +1,11 @@
 import { DataConnector } from "@jupyterlab/coreutils";
 import { IClientSession } from "@jupyterlab/apputils";
 import { BurdockInspectionHandler } from "./handler";
+import {
+    Kernel, KernelMessage
+} from "@jupyterlab/services";
 import IReply = BurdockInspectionHandler.IReply;
 import IRequest = BurdockInspectionHandler.IRequest;
-import { KernelMessage, Kernel } from "@jupyterlab/services";
 
 const TARGET_NAME = 'burdocklab_target';
 
@@ -29,32 +31,27 @@ export class BurdockConnector extends DataConnector<IReply, void, IRequest> {
         }
 
         const comm = (this._comm = kernel.connectToComm(TARGET_NAME, this._id));
-        comm.onClose = this.onCommClose.bind(this);
-        comm.onMsg = this.onCommMsg.bind(this);
         await comm.open();
+        console.log("COMM OPEN", this._id);
         return comm;
     }
 
     async fetch(id: IRequest): Promise<IReply | undefined> {
         const comm = await this.ensureComm();
-        const res = comm.send({"hello": "world"});
 
-        console.log("RES:", res);
-        return {
-            "data": {},
-            "metadata": {}
-        };
-    }
+        return new Promise<IReply | undefined>((resolve, reject) => {
+            const handler = comm.send({"hello": "world"});
 
-    async onCommClose(msg: KernelMessage.ICommCloseMsg): Promise<void> {
-        console.log("COMM CLOSED", JSON.stringify(msg.content), this);
-        this._comm.dispose();
-        return;
-    }
+            handler.onIOPub = (msg: KernelMessage.IIOPubMessage<'comm_msg'>) => {
+                if (!KernelMessage.isCommMsgMsg(msg)) return;
+                const {metadata, "content": {data}} = msg;
 
-    async onCommMsg(msg: KernelMessage.ICommMsgMsg): Promise<void> {
-        console.log("COMM MSG", JSON.stringify(msg.content), this);
-        return;
+                resolve({
+                    "data": data,
+                    "metadata": metadata
+                });
+            };
+        });
     }
 }
 

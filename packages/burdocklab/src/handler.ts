@@ -81,8 +81,7 @@ export class BurdockInspectionHandler implements IDisposable, IInspectable {
     }
 
     set editor(newEditor: CodeEditor.IEditor | null) {
-        console.log("SETTING EDITOR", newEditor, this);
-        if (newEditor === this._editor) return;
+        if (newEditor === this._editor) return;  // this will happen quite a lot
 
         // Remove all listeners.
         Signal.disconnectReceiver(this);
@@ -98,7 +97,6 @@ export class BurdockInspectionHandler implements IDisposable, IInspectable {
     }
 
     protected async onEditorChange(): Promise<void> {
-        console.log("ON EDITOR CHANGE", this);
         if (this._standby) return;
 
         const editor = this.editor;
@@ -111,11 +109,9 @@ export class BurdockInspectionHandler implements IDisposable, IInspectable {
         const update: IBurdockInspector.IUpdate = {content: null};
 
         const pending = ++this._pending;
-        console.log("PENDING: ", pending);
 
         try {
             const reply = await this._connector.fetch({offset, text});
-            console.log("REPLY: ", reply);
 
             // If handler has been disposed or a newer request is pending, bail.
             if (this.isDisposed || pending !== this._pending) {
@@ -123,8 +119,11 @@ export class BurdockInspectionHandler implements IDisposable, IInspectable {
                 return;
             }
 
-            const data = reply;
+            const {data} = reply;
             const mimeType = this._rendermime.preferredMimeType(data);
+
+            console.log("DATA: ", JSON.stringify(data));
+            console.log("MIMETYPE: ", mimeType);
 
             if (mimeType) {
                 const widget = this._rendermime.createRenderer(mimeType);
@@ -132,12 +131,11 @@ export class BurdockInspectionHandler implements IDisposable, IInspectable {
 
                 await widget.renderModel(model);
                 update.content = widget;
-
-                this._inspected.emit(update);
             }
 
+            this._inspected.emit(update);
+
         } catch (err) {
-            console.warn(err);
             // Since almost all failures are benign, fail silently.
             this._inspected.emit(update);
         }
