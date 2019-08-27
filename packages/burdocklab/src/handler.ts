@@ -119,10 +119,10 @@ export class BurdockInspectionHandler implements IDisposable, IInspectable {
                 return;
             }
 
+            console.log("REPLY: ", JSON.stringify(reply));
             const {data} = reply;
             const mimeType = this._rendermime.preferredMimeType(data);
 
-            console.log("DATA: ", JSON.stringify(data));
             console.log("MIMETYPE: ", mimeType);
 
             if (mimeType) {

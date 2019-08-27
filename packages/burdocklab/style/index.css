@@ -1,4 +1,9 @@
 :root {
   --bl-padding: 10px; }
 
+.jp-BurdockInspector-content {
+  padding: var(--bl-padding); }
+.jp-BurdockInspector-default-content {
+  color: gray; }
+
 /*# sourceMappingURL=index.css.map */

@@ -3,6 +3,7 @@ from typing import List
 
 import pandas as pd
 from IPython import InteractiveShell
+from IPython.utils.tokenutil import token_at_cursor
 from burdock.core import Burdock
 from ipykernel.comm import CommManager, Comm
 from ipykernel.ipkernel import IPythonKernel
@@ -56,7 +57,10 @@ class BurdockAgent:
         def dummy_target_func(comm: Comm, open_msg):
             @comm.on_msg
             def _recv(msg):
-                comm.send({"world": "hello"})
+                code = msg['content']['data']['code']
+                cursor_pos = msg['content']['data']['cursor_pos']
+
+                comm.send(self.do_inspect(code, cursor_pos))
 
             @comm.on_close
             def _close(msg):
@@ -93,6 +97,29 @@ class BurdockAgent:
     # --------------------------------------------------------------------------
     # Running Daikon (via Burdock)
     # --------------------------------------------------------------------------
+
+    def do_inspect(self, code, cursor_pos):
+        name = token_at_cursor(code, cursor_pos)
+
+        reply_data = {
+            'status': 'ok',
+            'mimebundle': {},
+        }
+        try:
+            reply_data['mimebundle'].update(
+                {
+                    'application/json': {
+                        'is_dataframe': isinstance(self.shell.user_ns[name], pd.DataFrame)
+                    }
+                }
+            )
+            # if not self.shell.enable_html_pager:
+            #     reply_content['mimebundle'].pop('text/html')
+            reply_data['found'] = True
+        except KeyError:
+            reply_data['found'] = False
+
+        return reply_data
 
     def analyze(self, name: str) -> (str, str):
         user_ns = self.shell.user_ns

@@ -36,18 +36,28 @@ export class BurdockConnector extends DataConnector<IReply, void, IRequest> {
         return comm;
     }
 
-    async fetch(id: IRequest): Promise<IReply | undefined> {
+    async fetch(request: IRequest): Promise<IReply | undefined> {
         const comm = await this.ensureComm();
 
+        const data: KernelMessage.ICommMsgMsg['content']['data'] = {
+            code: request.text,
+            cursor_pos: request.offset
+        };
+
         return new Promise<IReply | undefined>((resolve, reject) => {
-            const handler = comm.send({"hello": "world"});
+            const handler = comm.send(data);
 
             handler.onIOPub = (msg: KernelMessage.IIOPubMessage<'comm_msg'>) => {
                 if (!KernelMessage.isCommMsgMsg(msg)) return;
-                const {metadata, "content": {data}} = msg;
 
+                console.log("IOPUB MSG:", JSON.stringify(msg));
+
+                const {metadata, "content": {"data": {mimebundle}}} = msg;
+
+                // todo: better fix
+                // @ts-ignore
                 resolve({
-                    "data": data,
+                    "data": mimebundle,
                     "metadata": metadata
                 });
             };

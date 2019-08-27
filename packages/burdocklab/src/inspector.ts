@@ -1,5 +1,6 @@
 import {
-    StackedPanel,
+    Panel,
+    PanelLayout,
     Widget
 } from "@phosphor/widgets";
 
@@ -9,13 +10,18 @@ import {
 } from "@jupyterlab/apputils";
 import { IBurdockInspector } from "./tokens";
 
-export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspector {
+const PANEL_CLASS = 'jp-BurdockInspector';
+const CONTENT_CLASS = 'jp-BurdockInspector-content';
+const DEFAULT_CONTENT_CLASS = 'jp-BurdockInspector-default-content';
+
+export class BurdockInspectorPanel extends Panel implements IBurdockInspector {
     private _source: IBurdockInspector.IInspectable | null;
+    private _content: Widget = null;
 
     readonly toolbar: Toolbar;
 
     constructor(options: BurdockInspectorPanel.IOptions = {}) {
-        super({...options} as StackedPanel.IOptions);
+        super({...options} as Panel.IOptions);
 
         // this.title.iconClass =/
         this.title.closable = true;
@@ -24,7 +30,23 @@ export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspe
         this.title.label = BurdockInspectorPanel.PANEL_TITLE;
         this.title.iconClass = "jp-SpreadsheetIcon";
         this.title.closable = true;
-        this.addClass(BurdockInspectorPanel.PANEL_CLASS);
+
+        const {initialContent} = options;
+
+        if (initialContent instanceof Widget) {
+            this._content = initialContent;
+        } else if (typeof initialContent === 'string') {
+            this._content = BurdockInspectorPanel._generateContentWidget(
+                `<p>${options.initialContent}</p>`
+            );
+        } else {
+            this._content = BurdockInspectorPanel._generateContentWidget(
+                '<p>Click on a dataframe to see invariants.</p>'
+            );
+        }
+
+        this.addClass(PANEL_CLASS);
+        (this.layout as PanelLayout).addWidget(this._content);
     }
 
     get source(): IBurdockInspector.IInspectable | null {
@@ -37,8 +59,8 @@ export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspe
         // Disconnect any signal handlers.
         if (this._source) {
             this._source.standby = true;
-            // this._source.inspected.disconnect(this.onInspectorUpdate, this);
-            // this._source.disposed.disconnect(this.onSourceDisposed, this);
+            this._source.inspected.disconnect(this.onSourceInspected, this);
+            this._source.disposed.disconnect(this.onSourceDisposed, this);
         }
 
         // Reject a source that is already disposed.
@@ -53,8 +75,8 @@ export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspe
         // Connect any new signal handlers.
         if (this._source) {
             this._source.standby = false;
-            // this._source.inspected.connect(this.onInspectorUpdate, this);
-            // this._source.disposed.connect(this.onSourceDisposed, this);
+            this._source.inspected.connect(this.onSourceInspected, this);
+            this._source.disposed.connect(this.onSourceDisposed, this);
         }
     }
 
@@ -73,14 +95,44 @@ export class BurdockInspectorPanel extends StackedPanel implements IBurdockInspe
 
         return toolbar;
     }
+
+    protected async onSourceInspected(sender: any, update: IBurdockInspector.IUpdate): Promise<void> {
+        const {content} = update;
+
+        if (!content || content === this._content) {
+            return;
+        }
+
+        this._content.dispose();
+        this._content = content;
+
+        content.addClass(CONTENT_CLASS);
+        (this.layout as PanelLayout).addWidget(content);
+    }
+
+    protected async onSourceDisposed(sender: any, args: void) {
+        // Note, we explicitly want to call the setter here!
+        this.source = null;
+    }
+
+    /**
+     * Generate content widget from string
+     */
+    private static _generateContentWidget(message: string): Widget {
+        const widget = new Widget();
+        widget.node.innerHTML = message;
+        widget.addClass(CONTENT_CLASS);
+        widget.addClass(DEFAULT_CONTENT_CLASS);
+
+        return widget;
+    }
 }
 
 export namespace BurdockInspectorPanel {
     export const PANEL_ID = 'burdocklab-panel';
-    export const PANEL_CLASS = 'jp-BurdockInspectorPanel';
     export const PANEL_TITLE = 'Burdock Inspector';
 
     export interface IOptions {
-
+        initialContent?: Widget | string | undefined;
     }
 }

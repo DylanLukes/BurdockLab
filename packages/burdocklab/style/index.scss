@@ -2,6 +2,12 @@
   --bl-padding: 10px;
 }
 
-.jp-BurdockInspectorPanel {
+.jp-BurdockInspector {
+  &-content {
+    padding: var(--bl-padding);
+  }
 
+  &-default-content {
+    color: gray;
+  }
 }
