@@ -2,10 +2,10 @@
   "name": "root",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/burdocklab",
+    "packages/burdocklab-extension"
   ],
   "devDependencies": {
-    "lerna": "^3.15.0",
     "rimraf": "~2.6.2",
     "typescript": "~3.5.1"
   }

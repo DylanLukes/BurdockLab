@@ -5,6 +5,7 @@
 .jp-BurdockInspector {
   &-content {
     padding: var(--bl-padding);
+    overflow-y: scroll;
   }
 
   &-default-content {

@@ -2,7 +2,8 @@
   --bl-padding: 10px; }
 
 .jp-BurdockInspector-content {
-  padding: var(--bl-padding); }
+  padding: var(--bl-padding);
+  overflow-y: scroll; }
 .jp-BurdockInspector-default-content {
   color: gray; }
 

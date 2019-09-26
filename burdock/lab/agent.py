@@ -1,3 +1,4 @@
+import re
 import tempfile
 from typing import List
 
@@ -5,6 +6,9 @@ import pandas as pd
 from IPython import InteractiveShell
 from IPython.utils.tokenutil import token_at_cursor
 from burdock.core import Burdock
+from burdock.util import run_daikon
+from burdock.matcher.common import numeric_matcher
+from burdock.expander.common import statistics_expander
 from ipykernel.comm import CommManager, Comm
 from ipykernel.ipkernel import IPythonKernel
 from jupyter_client.session import Session
@@ -106,13 +110,24 @@ class BurdockAgent:
             'mimebundle': {},
         }
         try:
-            reply_data['mimebundle'].update(
-                {
-                    'application/json': {
-                        'is_dataframe': isinstance(self.shell.user_ns[name], pd.DataFrame)
+            is_dataframe = isinstance(self.shell.user_ns[name], pd.DataFrame)
+            reply_data['mimebundle'].update({'application/json': {'is_dataframe': is_dataframe}})
+
+            if is_dataframe:
+                daikon_stdout: str = self.analyze(name)
+                regex = r"(?::::POINT$\s+)((?:.*\s+)+)?Exiting Daikon."
+
+                matches = re.findall(regex, daikon_stdout, re.MULTILINE)
+                invariants = matches[0].splitlines()
+
+                reply_data['mimebundle'].update(
+                    {
+                        'application/json': {
+                            'is_dataframe': is_dataframe,
+                            'invariants': invariants
+                        }
                     }
-                }
-            )
+                )
             # if not self.shell.enable_html_pager:
             #     reply_content['mimebundle'].pop('text/html')
             reply_data['found'] = True
@@ -128,7 +143,9 @@ class BurdockAgent:
         df = user_ns.get(name)
         assert isinstance(df, pd.DataFrame)
 
-        burdock = Burdock(name, df)
+        burdock = Burdock(name, df,
+                          matchers=[numeric_matcher],
+                          expanders=[statistics_expander])
         burdock.match()
         burdock.expand()
 
@@ -138,11 +155,13 @@ class BurdockAgent:
                                                 suffix='.decls',
                                                 delete=False)
         burdock.write_decls(decls_tmp)
+        decls_tmp.flush()
 
         dtrace_tmp = tempfile.NamedTemporaryFile(mode='w+',
                                                  prefix='burdock-',
                                                  suffix='.dtrace',
                                                  delete=False)
         burdock.write_dtrace(dtrace_tmp)
+        dtrace_tmp.flush()
 
-        return decls_tmp.name, dtrace_tmp.name
+        return run_daikon(decls_tmp.name, dtrace_tmp.name)
